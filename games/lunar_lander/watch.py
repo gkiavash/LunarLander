@@ -1,35 +1,28 @@
-"""Watch a trained agent fly.
+"""Watch a trained LunarLander agent fly.
 
-    python watch.py                                  # load checkpoints/best.pt
-    python watch.py --checkpoint checkpoints/latest.pt
-    python watch.py --episodes 5
+    python -m games.lunar_lander.watch                  # load checkpoints/lunar_lander/best.pt
+    python -m games.lunar_lander.watch --checkpoint checkpoints/lunar_lander/latest.pt
+    python -m games.lunar_lander.watch --episodes 5
 """
 import argparse
 import os
 import sys
 
-import gymnasium as gym
 import torch
 
-from train import BEST_PATH, QNetwork
-from viewer import ACTIONS, GREY, WHITE, YELLOW, Viewer, state_lines, step_lines
+from games.lunar_lander.env import ACTIONS, STATE_LABELS, make_env
+from games.lunar_lander.train import BEST_PATH
+from rl.checkpoint import load_weights
+from rl.networks import MLPQNetwork
+from rl.viewer import WHITE, Viewer, q_value_lines, state_lines, step_lines
 
 
 def load_q_network(path, state_dim, n_actions):
-    checkpoint = torch.load(path, weights_only=False)
-    # best.pt holds bare weights; latest.pt holds a full training checkpoint.
-    weights = checkpoint["q"] if "q" in checkpoint else checkpoint
-    q = QNetwork(state_dim, n_actions, hidden=weights["fc1.weight"].shape[0])
+    weights = load_weights(path)
+    q = MLPQNetwork(state_dim, n_actions, hidden=weights["fc1.weight"].shape[0])
     q.load_state_dict(weights)
     q.eval()
     return q
-
-
-def q_value_lines(q_values, action):
-    lines = [("action values", GREY)]
-    for i, (name, value) in enumerate(zip(ACTIONS, q_values)):
-        lines.append((f"{name:<10} {value:+7.2f}", YELLOW if i == action else WHITE))
-    return lines
 
 
 def main():
@@ -39,10 +32,10 @@ def main():
     args = parser.parse_args()
 
     if not os.path.exists(args.checkpoint):
-        sys.exit(f"No checkpoint at {args.checkpoint}. Train first: python train.py "
+        sys.exit(f"No checkpoint at {args.checkpoint}. Train first: python -m games.lunar_lander.train "
                  f"(best.pt appears once 100 episodes are done)")
 
-    env = gym.make("LunarLander-v3", render_mode="rgb_array")
+    env = make_env(render_mode="rgb_array")
     q = load_q_network(args.checkpoint, env.observation_space.shape[0], env.action_space.n)
     state, _ = env.reset()
     viewer = Viewer(env, f"LunarLander - {os.path.basename(args.checkpoint)}")
@@ -58,8 +51,8 @@ def main():
         step += 1
         episode_return += reward
 
-        lines = step_lines(episode, step, action, reward, episode_return) + [("", WHITE)]
-        lines += q_value_lines(q_values, action) + [("", WHITE)] + state_lines(state)
+        lines = step_lines(episode, step, action, reward, episode_return, ACTIONS) + [("", WHITE)]
+        lines += q_value_lines(q_values, action, ACTIONS) + [("", WHITE)] + state_lines(state, STATE_LABELS)
         viewer.draw(env.render(), lines)
 
         if terminated or truncated:

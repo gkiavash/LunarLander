@@ -1,2 +1,5 @@
 __pycache__/
 .idea/
+# Full training checkpoints include the replay buffer and can be gigabytes; best.pt (weights only) is small.
+checkpoints/*/latest.pt
+*.pt.tmp

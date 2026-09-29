@@ -1,8 +1,5 @@
-"""Pygame window showing the LunarLander frame with a live info panel on the right."""
+"""Pygame window showing a game frame (any env with render_mode="rgb_array") with a live info panel on the right."""
 import pygame
-
-ACTIONS = ["noop", "fire left", "fire main", "fire right"]
-STATE_LABELS = ["x", "y", "vel x", "vel y", "angle", "ang vel", "left leg", "right leg"]
 
 WHITE = (230, 230, 230)
 GREY = (140, 140, 150)
@@ -40,16 +37,23 @@ class Viewer:
         pygame.quit()
 
 
-def step_lines(episode, step, action, reward, episode_return):
+def step_lines(episode, step, action, reward, episode_return, actions):
     return [
         (f"episode    {episode}", WHITE),
         (f"step       {step}", WHITE),
         ("", WHITE),
-        (f"action     {ACTIONS[action]}", YELLOW),
+        (f"action     {actions[action]}", YELLOW),
         (f"reward     {reward:+.2f}", GREEN if reward >= 0 else RED),
         (f"return     {episode_return:+.1f}", WHITE),
     ]
 
 
-def state_lines(state):
-    return [("state", GREY)] + [(f"{label:<10} {value:+.3f}", WHITE) for label, value in zip(STATE_LABELS, state)]
+def state_lines(state, labels):
+    return [("state", GREY)] + [(f"{label:<10} {value:+.3f}", WHITE) for label, value in zip(labels, state)]
+
+
+def q_value_lines(q_values, action, actions):
+    lines = [("action values", GREY)]
+    for i, (name, value) in enumerate(zip(actions, q_values)):
+        lines.append((f"{name:<10} {value:+7.2f}", YELLOW if i == action else WHITE))
+    return lines

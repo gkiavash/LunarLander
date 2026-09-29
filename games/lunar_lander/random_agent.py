@@ -1,8 +1,11 @@
-import gymnasium as gym
+"""Watch LunarLander with random actions, as a baseline.
 
-from viewer import WHITE, Viewer, state_lines, step_lines
+    python -m games.lunar_lander.random_agent
+"""
+from games.lunar_lander.env import ACTIONS, STATE_LABELS, make_env
+from rl.viewer import WHITE, Viewer, state_lines, step_lines
 
-env = gym.make("LunarLander-v3", render_mode="rgb_array")
+env = make_env(render_mode="rgb_array")
 state, _ = env.reset()
 viewer = Viewer(env, "LunarLander - random agent")
 
@@ -17,7 +20,8 @@ for _ in range(10000):
     step += 1
     episode_return += reward
 
-    viewer.draw(env.render(), step_lines(episode, step, action, reward, episode_return) + [("", WHITE)] + state_lines(state))
+    viewer.draw(env.render(), step_lines(episode, step, action, reward, episode_return, ACTIONS) + [("", WHITE)]
+                + state_lines(state, STATE_LABELS))
 
     if terminated or truncated:
         print(f"episode {episode}: return {episode_return:.1f} in {step} steps")
