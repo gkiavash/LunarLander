@@ -4,13 +4,19 @@ import torch
 
 
 class ReplayBuffer:
-    """Stores whole (s, a, r, s', done) transitions. Fine for small vector states."""
+    """Stores whole (s, a, r, s', done) transitions. Fine for small vector states.
 
-    def __init__(self, capacity, state_dim):
+    action_dim=None stores one discrete action index per transition (DQN); an int stores a float vector (SAC).
+    """
+
+    def __init__(self, capacity, state_dim, action_dim=None):
         self.capacity = capacity
         self.states = np.zeros((capacity, state_dim), dtype=np.float32)
         self.next_states = np.zeros((capacity, state_dim), dtype=np.float32)
-        self.actions = np.zeros(capacity, dtype=np.int64)
+        if action_dim is None:
+            self.actions = np.zeros(capacity, dtype=np.int64)
+        else:
+            self.actions = np.zeros((capacity, action_dim), dtype=np.float32)
         self.rewards = np.zeros(capacity, dtype=np.float32)
         self.dones = np.zeros(capacity, dtype=np.float32)
         self.pos = 0

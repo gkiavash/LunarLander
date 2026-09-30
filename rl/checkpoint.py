@@ -2,7 +2,7 @@
 
 Each game keeps its files in checkpoints/<game>/:
     latest.pt  full training state (weights, optimizer, replay buffer, RNG, progress) for resuming
-    best.pt    bare Q-network weights with the best 100-episode average, for watching
+    best.pt    bare policy weights (DQN: Q-network, SAC: actor) from the best point in training, for watching
 """
 import os
 import random
@@ -31,9 +31,7 @@ def save_checkpoint(agent, progress, path):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     checkpoint = {
         "config": agent.cfg,
-        "q": agent.q.state_dict(),
-        "target": agent.target.state_dict(),
-        "optimizer": agent.optimizer.state_dict(),
+        **agent.state_dict(),          # networks and optimizers, named by the agent (e.g. q/target/optimizer for DQN)
         "buffer": agent.buffer.state_dict(),
         "progress": progress,
         "rng": {
@@ -51,9 +49,7 @@ def save_checkpoint(agent, progress, path):
 def load_checkpoint(agent, path):
     # Load on CPU: the RNG state must stay a CPU tensor; load_state_dict copies weights to the agent's device.
     checkpoint = torch.load(path, weights_only=False, map_location="cpu")
-    agent.q.load_state_dict(checkpoint["q"])
-    agent.target.load_state_dict(checkpoint["target"])
-    agent.optimizer.load_state_dict(checkpoint["optimizer"])
+    agent.load_state_dict(checkpoint)
     agent.buffer.load_state_dict(checkpoint["buffer"])
     random.setstate(checkpoint["rng"]["python"])
     np.random.set_state(checkpoint["rng"]["numpy"])
@@ -66,7 +62,8 @@ def save_weights(network, path):
     torch.save(network.state_dict(), path)
 
 
-def load_weights(path):
-    """Q-network weights from either a best.pt (bare weights) or a latest.pt (full checkpoint)."""
+def load_weights(path, key="q"):
+    """Policy weights from either a best.pt (bare weights) or a latest.pt (full checkpoint, read at `key`:
+    "q" for DQN, "actor" for SAC)."""
     checkpoint = torch.load(path, weights_only=False, map_location="cpu")
-    return checkpoint["q"] if "q" in checkpoint else checkpoint
+    return checkpoint[key] if key in checkpoint else checkpoint

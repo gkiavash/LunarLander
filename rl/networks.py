@@ -1,4 +1,6 @@
-"""Q-networks: a state goes in, one value per action comes out."""
+"""Networks: Q-networks for DQN (state in, one value per action out), actor and critics for SAC."""
+import math
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -35,3 +37,49 @@ class AtariQNetwork(nn.Module):
 
     def forward(self, x):
         return self.out(F.relu(self.fc(self._features(x.float() / 255.0))))
+
+
+def mlp(sizes):
+    """Linear layers with ReLU between them (none after the last)."""
+    layers = []
+    for i in range(len(sizes) - 1):
+        layers.append(nn.Linear(sizes[i], sizes[i + 1]))
+        if i < len(sizes) - 2:
+            layers.append(nn.ReLU())
+    return nn.Sequential(*layers)
+
+
+class SquashedGaussianActor(nn.Module):
+    """SAC policy for continuous actions in [-1, 1]: a Gaussian whose samples are squashed through tanh."""
+
+    LOG_STD_MIN, LOG_STD_MAX = -20, 2
+
+    def __init__(self, state_dim, action_dim, hidden):
+        super().__init__()
+        self.body = mlp([state_dim, hidden, hidden])
+        self.mu = nn.Linear(hidden, action_dim)
+        self.log_std = nn.Linear(hidden, action_dim)
+
+    def forward(self, state, deterministic=False):
+        """Returns (action, log-probability of that action)."""
+        h = F.relu(self.body(state))
+        mu = self.mu(h)
+        std = self.log_std(h).clamp(self.LOG_STD_MIN, self.LOG_STD_MAX).exp()
+        dist = torch.distributions.Normal(mu, std)
+        u = mu if deterministic else dist.rsample()        # rsample keeps the gradient path (reparameterisation)
+        # Log-prob of tanh(u): Gaussian log-prob minus the log-derivative of tanh, written in a stable form.
+        log_prob = dist.log_prob(u).sum(-1) - (2 * (math.log(2) - u - F.softplus(-2 * u))).sum(-1)
+        return torch.tanh(u), log_prob
+
+
+class TwinQCritic(nn.Module):
+    """Two independent Q(s, a) estimates; SAC uses the smaller one to avoid overestimating."""
+
+    def __init__(self, state_dim, action_dim, hidden):
+        super().__init__()
+        self.q1 = mlp([state_dim + action_dim, hidden, hidden, 1])
+        self.q2 = mlp([state_dim + action_dim, hidden, hidden, 1])
+
+    def forward(self, state, action):
+        x = torch.cat([state, action], dim=-1)
+        return self.q1(x).squeeze(-1), self.q2(x).squeeze(-1)

@@ -19,6 +19,14 @@ class DQNAgent:
         self.optimizer = torch.optim.Adam(self.q.parameters(), lr=cfg["lr"])
         self.buffer = buffer
 
+    def state_dict(self):
+        return {"q": self.q.state_dict(), "target": self.target.state_dict(), "optimizer": self.optimizer.state_dict()}
+
+    def load_state_dict(self, d):
+        self.q.load_state_dict(d["q"])
+        self.target.load_state_dict(d["target"])
+        self.optimizer.load_state_dict(d["optimizer"])
+
     def act(self, state, eps):
         """Epsilon-greedy action for one state (an unbatched numpy array)."""
         if random.random() < eps:

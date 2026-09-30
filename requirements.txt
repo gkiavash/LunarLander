@@ -1,0 +1,6 @@
+gymnasium==1.3.0
+box2d-py==2.3.8           # LunarLander, CarRacing physics
+pygame-ce==2.5.8          # viewer windows
+numpy==2.5.3
+torch==2.14.0
+jsbsim==1.3.1             # jet_landing flight dynamics
